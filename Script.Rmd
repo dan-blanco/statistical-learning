@@ -1,0 +1,27 @@
+---
+title: "Script"
+author: "Benedicte"
+date: "23/07/2020"
+output: pdf_document
+---
+```{r}
+#Just testing push and pull 
+
+library("dplyr")
+```
+
+```{r}
+kickstarter_min <- readRDS("/Users/benedicte/Documents/Statistical regression/Group P/kickstarter-processed-data.rds")
+```
+
+
+```{r}
+set.seed(456) 
+SplitIndex <- sample(x = c("Train", "Test"), replace = T, prob = c(0.7,0.3), 
+                     size = nrow(kickstarter_min))
+
+#Subset data into a train and test set based on the SplitIndex vector
+traindata <- kickstarter_min[SplitIndex == "Train", ]
+testdata <- kickstarter_min[SplitIndex == "Test", ]
+```
+
