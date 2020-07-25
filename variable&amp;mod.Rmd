@@ -3,11 +3,10 @@ title: "Models for preliminary report"
 author: "Benedicte"
 date: "14/07/2020"
 output: pdf_document
-
 ---
 
 ```{r message=FALSE, warning=FALSE}
-#Don't remove my libraries, I use them all.
+#Don't remove my libraries, I use them all. ada
 library(tidyr)
 library(caret)
 library(dplyr)
@@ -29,8 +28,7 @@ library("leaps")
 #Read data 
 ```{r warning=FALSE}
 kickstarter_min <- readRDS("/Users/benedicte/Downloads/final_clean_kickstarter.rds")
-
-#These variables are only dropped temprarily. While I am trying to find the variables that caused the error in best subset, lasso and pcl. I talked to Steve about it and he said this was smart to do while I was looking for the variable creating the complications. 
+ 
 kickstarter_min$cat_child <- NULL
 kickstarter_min$city <- NULL
 kickstarter_min$blurb <- NULL
