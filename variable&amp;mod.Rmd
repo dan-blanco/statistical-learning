@@ -1,6 +1,5 @@
 ---
 title: "Models for preliminary report"
-author: "Benedicte"
 date: "14/07/2020"
 output: pdf_document
 ---
@@ -25,25 +24,44 @@ library(MASS)
 library("leaps")
 ```
 
-#Read data 
+# Read Data 
+
+**IMPORTANT:** A quick comment about modeling. Steve said its better to not log the variable outside the model. He prefers to log it when creating the model. Since we already did that, maybe we can fix it when the project is done.
+
+**TASK** - Fix the logs in models. They should be logged when the model is made, not before!
+
+**IMPORTANT** It makes no sense to predict goal ratio (a product of goal and pledged) using the features pledged or goal logged. All of the models on this page were built like that. Other vairables that should not be modeled, and were removed are pledged_log, id and target. It is not meaningful to use target (success or fail) to predict something that has not happened....
+
+**IMPORTANT** Size was not the issue for modeling. There were errors in the data. They are fixed now.
+
+**IMPORTANT** Should we include number of backers count? Think about it, how would someone starting a kickstarter campaign select that? They can select a category, a data... But not backers count. Intresting to see that backers_count is significant in the models. We should talk about that before removing it. May be intresting for an area of future research to predict backers_count.
+
+**IMPORTANT** We should consider looking at the campaings that raised a ridiciouls amount of money, lets say top 5. And lowering the pledged value to the 6th highest...
+
 ```{r warning=FALSE}
-kickstarter_min <- readRDS("/Users/benedicte/Downloads/final_clean_kickstarter.rds")
+kickstarter_min <- readRDS("final_clean_kickstarter.rds")
  
 kickstarter_min$cat_child <- NULL
 kickstarter_min$city <- NULL
 kickstarter_min$blurb <- NULL
 kickstarter_min$country_displayable_name <- NULL 
-kickstarter_min$country <- NULL 
 kickstarter_min$name <- NULL
+kickstarter_min$deadline<-NULL 
+kickstarter_min$launched_at<-NULL
 
 str(kickstarter_min)
  
 ```
 
+```{r}
+summary(kickstarter_min)
+```
 
 
 
-#change country to continent 
+
+
+# change country to continent 
 ```{r warning=FALSE}
 #This changes countries over to continent so we have less levles and still have a variable which puts the area of the project. I have cheked the code with Steve and he said it was clean and easy to read so it was good. 
 cntnt_Europe = c("DK","AT", "BE", "CH","DE","ES", "FR", "GB","IE", "IT","LU", "NL","NO","SE")
@@ -60,162 +78,137 @@ sa <- kickstarter_min$country %in% cntnt_SA
 pacific <- kickstarter_min$country %in% cntnt_Pacific
 
 kickstarter_min$continent = "ph"
-kickstarter_min$continent[eurpn] <- "Europe"
+kickstarter_min$continent <- kickstarter_min$continent[eurpn] <- "Europe"
 kickstarter_min$continent[asian] <- "Asia"
 kickstarter_min$continent[na] <- "NorthAmerica"
 kickstarter_min$continent[sa] <- "SouthAmerica"
 kickstarter_min$continent[pacific] <- "Pacific"
+
+kickstarter_min$continent <- as.factor(kickstarter_min$continent) # obvisouly needs to be a factor.....
+kickstarter_min$country <- NULL
+```
+
+
+```{r}
+str(kickstarter_min)
+```
+```{r}
+summary(kickstarter_min)
 ```
 
 
 
-#Split into train and test 
+# Split into train and test 
 ```{r}
-#For the sample of the date when attempting varibale selection.
-sub_kickstarter <- kickstarter_min[sample(nrow(kickstarter_min), 1000), ]
-
 set.seed(456) 
 SplitIndex <- sample(x = c("Train", "Test"), replace = T, prob = c(0.7,0.3), 
-                     size = nrow(sub_kickstarter))
+                     size = nrow(kickstarter_min))
 
 #Subset data into a train and test set based on the SplitIndex vector
-traindata <- sub_kickstarter[SplitIndex == "Train", ]
-testdata <- sub_kickstarter[SplitIndex == "Test", ]
+traindata <- kickstarter_min[SplitIndex == "Train", ]
+testdata <- kickstarter_min[SplitIndex == "Test", ]
 ```
 
 
-#Variable selection 
-##Best subset 
-Since it gave computional errors when attempting best subset, stepwise, lasso and pcl even with variables with many levels dropped and a smaller sample it was determined to attempt variable selection by running it on less variables. 
-Based on this it seems like blurb, blurb lengt, county, country displayable name, number of days seems to make no impact on the dependent variable. 
-```{r, eval= FALSE}
-#nXvars <- ncol(traindata) - 1
-#regfit.best <- regsubsets(goal_ratio ~. , data = traindata, nvmax = nXvars, really.big = T)
-#summary(regfit.best)
+# Variable selection and Modeling
+
+The models below are build with goal_log instead of goal because of the heavy skew in goal. **UPDATE THIS TO BE log(goal) BECAUSE STEVE SAID IT IS BETTER**
+
+## Best subset with AIC
+Best step using AIC in direction "Backward". These are the default arguments.
 
 
-nXvars <- ncol(traindata[,-c(2,5,11,13)]) - 1
-nXvars = 15
-names(traindata) # goal_ratio is col 15
-#id is 
-cbind(names(traindata), 1:18) #exclude: 2,5,7,8,9,
-regfit.best <- regsubsets(goal_ratio ~. , data = traindata[,-c(2,5,11,13)][, 5:13], nvmax = nXvars, really.big = T)
-summary(regfit.best)
-
-
+```{r}
+lm_model <- lm(goal_ratio~.-pledged-goal-pledged_log-id-target, traindata)
+best_step <- step(lm_model, direction="backward", k=log(nobs(lm_model)))
 ```
 
-```{r, eval= FALSE}
-which.max(summary(regfit.best)$adjr2)
-which.min(summary(regfit.best)$cp)
-which.min(summary(regfit.best)$bic)
+Lets print out the best AIC model using Both directionial search
+```{r}
+best_step
 ```
 
+## PLS
 
-```{r, eval= FALSE}
-glm_model <- lm(pledged_log ~., data = traindata)
-ols_step_all_possible(glm_model)
-
-```
-
-
-##PLS
 ```{r, eval = FALSE}
-pcrPledged <- pcr(goal_ratio ~. , data = traindata[,-c(2,5,11,13)][, 5:13], validation="CV",scale=T)
-pcrPledged$loadings
+pls <- plsr(goal_ratio~.-pledged-goal-pledged_log-id-target , data = traindata, validation="CV", k=10,ncomp=7)
+validationplot(pls,val.type="RMSEP")
+```
+```{r}
+pls$loadings
 ```
 
 
-##Lasso 
-```{r, eval =FALSE}
-set.seed(456)
-lasso <- glmnet(model.matrix(goal_ratio ~. , data = traindata[,-c(2,5,11,13)][, 5:13])[, -1],
+
+## Lasso 
+
+```{r}
+lasso <- cv.glmnet(model.matrix(goal_ratio~.-pledged-goal-pledged_log-id-target, data = traindata)[, -1],
   traindata$goal_ratio,
-  alpha = 1, k = 2, labmda = 10^seq(10, -2, length = 1000)
+  alpha = 1, k = 10, labmda = 10^seq(100, -2, length = 10000)
 )
 plot(lasso)
 ```
 
-#Regression model 
-##Baseline from best subset 
 ```{r}
-glm_baseline1 <- glm(goal_ratio ~ backers_count + 
-                      cat_parent + continent + month + 
-                      goal_log + goal +staff_pick + name_length + pledged_log,
-                     data = traindata)
-```
-
-```{r}
-identity(glm_baseline1)
-```
-
-
-##Baseline with pledged_log as dependent variable 
-```{r}
-glm_baseline <- glm(pledged_log ~ backers_count + 
-                      cat_parent + continent + month + 
-                      goal_log + staff_pick  + 
-                      blurb_length + name_length , data = traindata)
-```
-
-```{r}
-identity(glm_baseline)
+predict(lasso,type="coefficients",s=lasso$lambda.min)
 ```
 
 
 
-#Evaluate regression model 
-##RMSE
-```{r}
-postResample(glm_baseline$fitted.values, glm_baseline$data$pledged_log)
-```
 
+#Residual plot of best step
+
+**TO-DO** Residual plot for LASSO and PLS
 
 ```{r}
-postResample(glm_baseline1$fitted.values, glm_baseline1$data$goal_ratio)
-
-#options(scipen = 999)
-#get rid off e
-
+plot(best_step)
 ```
 
+##Lets try Gamma Distribution
 
-##Residual plot 
-```{r}
-plot(glm_baseline, col=c("royalblue4"))
-```
+PREDICTING GOAL_RATIO
+This is creating issues because Gamma can not take negative numbers or 0. So goal ratios or pledged of 0 need to be converted. If its too small Log as link function does not handle it well. 
+
+The inverse and identity link function gives the error "Error: no valid set of coefficients has been found: please supply starting values"
+
+PREDICTING PLEDGED
+When predicting pledged, it worked better with goal and without goal_log.
 
 
-```{r}
-plot(glm_baseline1, col=c("royalblue4"))
-```
+**IMPORTANT** 0 values not allowed for gamma. Lets make them = 0.01
 
 
 ```{r}
-plot_summs(glm_baseline, scale = TRUE, plot.distributions = TRUE, inner_ci_level = .95)
+traindataGAMMA <- traindata
+traindataGAMMA$pledged[traindataGAMMA$pledged == 0] <- .01
+gmod<-glm(pledged~.-goal_ratio-goal_log-pledged_log-id-target-backers_count,family=Gamma(link=identity),traindataGAMMA)
+gstep<-step(gmod,trace=FALSE)
+gstep
 ```
+
+
+**QUESTION** - When using pearson residuals, are they suppose to be random
+```{r}
+plot(residuals(gstep,"pearson")~fitted(gstep),pch=16)
+```
+
+
 
 
 #Binominal model 
-##Baseline from best subset
 
 
 ##Baseline model with goal  
 ```{r}
 binominal_baseline <- glm(target ~ backers_count +
-                            cat_parent + country +
+                            cat_parent  +
                             month + goal + staff_pick  +
                             number_of_days + blurb_length +
                             name_length , data = traindata, family = binomial)
 ```
 
-##Baseline model with goal_log
 
-##Baseline model with goal_ratio 
-
-
-
-#Evaluate Binominal model 
 ##Model accuracy, precision, sensitivity, 
 ```{r warning=FALSE}
 confusionStats_df <- function(df,target){ # is as.character needed?
