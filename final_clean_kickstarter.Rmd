@@ -85,13 +85,11 @@ Dataset contains a lot of unnecessary variables that will not be needed for this
 The following variables were selected for feature engineering and analysis. 
 
 ```{r SELECT VARIABLES FROM ORIGINAL DATASET}
-kickstarter.sel <- kickstarter %>% select(
-  backers_count, blurb, country,
-  country_displayable_name, id,
-  deadline, goal, launched_at, name,
-  staff_pick, usd_pledged, target, cat_parent,
-  cat_child, city, static_usd_rate, currency
-)
+kickstarter.sel <- kickstarter[c("backers_count","blurb","country",
+                                 "country_displayable_name","id","deadline",
+                                 "goal","launched_at","name","staff_pick","usd_pledged",
+                                 "target","cat_parent","cat_child","city",
+                                 "static_usd_rate","currency")]
 
 kable(names(kickstarter.sel), "latex")
 

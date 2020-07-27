@@ -1,0 +1,259 @@
+---
+title: "Models for preliminary report"
+date: "14/07/2020"
+output: pdf_document
+---
+
+```{r message=FALSE, warning=FALSE}
+#Don't remove my libraries, I use them all. ada
+library(tidyr)
+library(caret)
+library(dplyr)
+library(lubridate)
+library(corrplot)
+library("pROC")
+library(ggplot2)
+library(RColorBrewer)
+library(kableExtra)
+library("arm")
+library("car")
+library("jtools")
+library(pls)
+library(glmnet)
+library(MASS)
+library("leaps")
+```
+
+# Read Data 
+
+**IMPORTANT:** A quick comment about modeling. Steve said its better to not log the variable outside the model. He prefers to log it when creating the model. Since we already did that, maybe we can fix it when the project is done.
+
+**TASK** - Fix the logs in models. They should be logged when the model is made, not before!
+
+**IMPORTANT** It makes no sense to predict goal ratio (a product of goal and pledged) using the features pledged or goal logged. All of the models on this page were built like that. Other vairables that should not be modeled, and were removed are pledged_log, id and target. It is not meaningful to use target (success or fail) to predict something that has not happened....
+
+**IMPORTANT** Size was not the issue for modeling. There were errors in the data. They are fixed now.
+
+**IMPORTANT** Should we include number of backers count? Think about it, how would someone starting a kickstarter campaign select that? They can select a category, a data... But not backers count. Intresting to see that backers_count is significant in the models. We should talk about that before removing it. May be intresting for an area of future research to predict backers_count.
+
+**IMPORTANT** We should consider looking at the campaings that raised a ridiciouls amount of money, lets say top 5. And lowering the pledged value to the 6th highest...
+
+```{r warning=FALSE}
+kickstarter_min <- readRDS("final_clean_kickstarter.rds")
+ 
+kickstarter_min$cat_child <- NULL
+kickstarter_min$city <- NULL
+kickstarter_min$blurb <- NULL
+kickstarter_min$country_displayable_name <- NULL 
+kickstarter_min$name <- NULL
+kickstarter_min$deadline<-NULL 
+kickstarter_min$launched_at<-NULL
+
+str(kickstarter_min)
+ 
+```
+
+```{r}
+summary(kickstarter_min)
+```
+
+
+
+
+
+# change country to continent 
+```{r warning=FALSE}
+#This changes countries over to continent so we have less levles and still have a variable which puts the area of the project. I have cheked the code with Steve and he said it was clean and easy to read so it was good. 
+cntnt_Europe = c("DK","AT", "BE", "CH","DE","ES", "FR", "GB","IE", "IT","LU", "NL","NO","SE")
+cntnt_Asia = c("HK","JP","SG")
+cntnt_NA = c("US","CA")
+cntnt_SA = c("MX")
+cntnt_Pacific = c("NZ","NZ")
+#cntnt_NAmer =
+
+eurpn <- kickstarter_min$country %in% cntnt_Europe
+asian <- kickstarter_min$country %in% cntnt_Asia  
+na <- kickstarter_min$country %in% cntnt_NA
+sa <- kickstarter_min$country %in% cntnt_SA
+pacific <- kickstarter_min$country %in% cntnt_Pacific
+
+kickstarter_min$continent = "ph"
+kickstarter_min$continent <- kickstarter_min$continent[eurpn] <- "Europe"
+kickstarter_min$continent[asian] <- "Asia"
+kickstarter_min$continent[na] <- "NorthAmerica"
+kickstarter_min$continent[sa] <- "SouthAmerica"
+kickstarter_min$continent[pacific] <- "Pacific"
+
+kickstarter_min$continent <- as.factor(kickstarter_min$continent) # obvisouly needs to be a factor.....
+kickstarter_min$country <- NULL
+```
+
+
+```{r}
+str(kickstarter_min)
+```
+```{r}
+summary(kickstarter_min)
+```
+
+
+
+# Split into train and test 
+```{r}
+set.seed(456) 
+SplitIndex <- sample(x = c("Train", "Test"), replace = T, prob = c(0.7,0.3), 
+                     size = nrow(kickstarter_min))
+
+#Subset data into a train and test set based on the SplitIndex vector
+traindata <- kickstarter_min[SplitIndex == "Train", ]
+testdata <- kickstarter_min[SplitIndex == "Test", ]
+```
+
+
+# Variable selection and Modeling
+
+The models below are build with goal_log instead of goal because of the heavy skew in goal. **UPDATE THIS TO BE log(goal) BECAUSE STEVE SAID IT IS BETTER**
+
+## Best subset with AIC
+Best step using AIC in direction "Backward". These are the default arguments.
+
+
+```{r}
+lm_model <- lm(goal_ratio~.-pledged-goal-pledged_log-id-target, traindata)
+best_step <- step(lm_model, direction="backward", k=log(nobs(lm_model)))
+```
+
+Lets print out the best AIC model using Both directionial search
+```{r}
+best_step
+```
+
+## PLS
+
+```{r, eval = FALSE}
+pls <- plsr(goal_ratio~.-pledged-goal-pledged_log-id-target , data = traindata, validation="CV", k=10,ncomp=7)
+validationplot(pls,val.type="RMSEP")
+```
+```{r}
+pls$loadings
+```
+
+
+
+## Lasso 
+
+```{r}
+lasso <- cv.glmnet(model.matrix(goal_ratio~.-pledged-goal-pledged_log-id-target, data = traindata)[, -1],
+  traindata$goal_ratio,
+  alpha = 1, k = 10, labmda = 10^seq(100, -2, length = 10000)
+)
+plot(lasso)
+```
+
+```{r}
+predict(lasso,type="coefficients",s=lasso$lambda.min)
+```
+
+
+
+
+#Residual plot of best step
+
+**TO-DO** Residual plot for LASSO and PLS
+
+```{r}
+plot(best_step)
+```
+
+##Lets try Gamma Distribution
+
+PREDICTING GOAL_RATIO
+This is creating issues because Gamma can not take negative numbers or 0. So goal ratios or pledged of 0 need to be converted. If its too small Log as link function does not handle it well. 
+
+The inverse and identity link function gives the error "Error: no valid set of coefficients has been found: please supply starting values"
+
+PREDICTING PLEDGED
+When predicting pledged, it worked better with goal and without goal_log.
+
+
+**IMPORTANT** 0 values not allowed for gamma. Lets make them = 0.01
+
+
+```{r}
+traindataGAMMA <- traindata
+traindataGAMMA$pledged[traindataGAMMA$pledged == 0] <- .01
+gmod<-glm(pledged~.-goal_ratio-goal_log-pledged_log-id-target-backers_count,family=Gamma(link=identity),traindataGAMMA)
+gstep<-step(gmod,trace=FALSE)
+gstep
+```
+
+
+**QUESTION** - When using pearson residuals, are they suppose to be random
+```{r}
+plot(residuals(gstep,"pearson")~fitted(gstep),pch=16)
+```
+
+
+
+
+#Binominal model 
+
+
+##Baseline model with goal  
+```{r}
+binominal_baseline <- glm(target ~ backers_count +
+                            cat_parent  +
+                            month + goal + staff_pick  +
+                            number_of_days + blurb_length +
+                            name_length , data = traindata, family = binomial)
+```
+
+
+##Model accuracy, precision, sensitivity, 
+```{r warning=FALSE}
+confusionStats_df <- function(df,target){ # is as.character needed?
+  cm <- confusionMatrix(table(Actual = df[[target]],Predicted = df$ClassPredict))
+  return(data.frame(cbind(t(cm$overall),t(cm$byClass))))
+}
+
+predictLog <- function(df,log, thresh=0.5, t=T, f=F){
+    
+  p           <- predict(object = log, newdata = df,
+                            type = "response",se.fit=T)
+  df$fit      <- p$fit
+  df$se.fit   <- p$se.fit
+  df$logits   <- predict(object = log, newdata = df)
+  df$ClassPredict <- ifelse(df$fit > thresh, t, f)
+  return(df)
+}
+
+results <- predictLog(testdata, binominal_baseline, t="successful", f="failed")
+
+results$ClassPredict <- as.factor(results$ClassPredict)
+
+confusionStats_df(results,"target")[c("Accuracy","Sensitivity","Specificity","Precision")]
+
+kable(confusionStats_df(results,"target")[c("Accuracy","Sensitivity","Specificity","Precision")]* 100, digits = 2, caption = "Model performance in percentage", booktabs = TRUE) %>%
+  kable_styling(font_size = 10, full_width = F)%>%
+  kable_styling(bootstrap_options = c("striped", "scale_down", "hover", "condensed")) 
+
+
+
+```
+
+
+
+
+##ROC 
+```{r warning=FALSE}
+plot.roc(results$target,results$fit, col = "royalblue4", backgroundcol = "lightskyblue",
+         main = "Binominal baseline model", print.auc = TRUE)
+```
+
+##Residual plot 
+
+```{r}
+binnedplot(results$fit, as.numeric(results$target) - as.numeric(results$ClassPredict), col.pts = "royalblue4", col.int = "lightskyblue")
+```
+
+
