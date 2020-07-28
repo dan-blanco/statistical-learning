@@ -28,13 +28,6 @@ library("CAST")
 # Read Data 
 
 1. Interations with LASSO and PSLR
-**IMPORTANT** 12 models were done. 
-  (i) 4 models with goal_ratio as target and goal_log an x value
-  (ii) 4 models with goal_ratio as target and goal an x value
-  (iii) 4 models with log(goal_ratio+1) as target and goal_log as an x value
-  
-  (i) seemed to have the best residual plot
-  
 2. Residual plots
 3. Look at bad residuals
 4. Poster
@@ -192,112 +185,6 @@ predict(lasso,type="coefficients",s=lasso$lambda.1se)
 
 ```{r}
 bck_step
-```
-
-
-```{r}
-plot(fwd_step)
-```
-
-# Variable selection and Modeling
-
-## Test Every without goal logged
-These models do not use the log of goal
-
-```{r}
-traindata4 <- traindata
-traindata4$pledged <- NULL
-traindata4$goal_log <- NULL
-traindata4$pledged_log <-NULL
-traindata4$id <- NULL
-traindata4$target <- NULL
-
-fwd_step <- NULL
-if (!file.exists("fwd_step_goal.rds")){
-  lm_model <- lm(goal_ratio~.*., traindata4)
-  fwd_step <- step(lm_model, direction="forward", k=log(nobs(lm_model)))
-  saveRDS(fwd_step, file="fwd_step_goal.rds")
-}else{
-  fwd_step <- readRDS(file="fwd_step_goal.rds")
-}
-
-bck_step <- NULL
-if (!file.exists("bck_step_goal.rds")){
-  lm_model <- lm(goal_ratio~.*., traindata4)
-  bck_step <- step(lm_model, direction="backward", k=log(nobs(lm_model)))
-  saveRDS(bck_step, file="bck_step_goal.rds")
-}else{
-  bck_step <- readRDS(file="bck_step_goal.rds")
-}
-
-pls <- NULL
-if (!file.exists("pls_goal.rds")){
-  pls <- plsr(goal_ratio~.*., data = traindata4, validation="CV", k=5,ncomp=7)
-  saveRDS(pls, file="pls_goal.rds")
-}else{
-  pls <- readRDS(file="pls_goal.rds")
-}
-
-lasso <- NULL
-if (!file.exists("lasso_goal.rds")){
-  lasso <- cv.glmnet(model.matrix(goal_ratio~.*., data = traindata4)[, -1],
-  traindata$goal_ratio,
-  alpha = 1, k = 5, labmda = 10^seq(100, -2, length = 10000))
-  saveRDS(lasso, file="lasso_goal.rds")
-}else{
-  lasso <- readRDS(file="lasso_goal.rds")
-}
-```
-
-```{r}
-plot(bck_step)
-```
-
-
-
-## Test Every Interaction with goal_ratio Logged
-Same thing as before except we log the goal ratio
-```{r}
-
-traindata3 <- traindata2
-traindata3$goal_ratio <- log(traindata3$goal_ratio+1)
-
-fwd_step <- NULL
-if (!file.exists("fwd_step_log.rds")){
-  lm_model <- lm(goal_ratio~.*., traindata3)
-  fwd_step <- step(lm_model, direction="forward", k=log(nobs(lm_model)))
-  saveRDS(fwd_step, file="fwd_step_log.rds")
-}else{
-  fwd_step <- readRDS(file="fwd_step_log.rds")
-}
-
-bck_step <- NULL
-if (!file.exists("bck_step_log.rds")){
-  lm_model <- lm(goal_ratio~.*., traindata3)
-  bck_step <- step(lm_model, direction="backward", k=log(nobs(lm_model)))
-  saveRDS(bck_step, file="bck_step_log.rds")
-}else{
-  bck_step <- readRDS(file="bck_step_log.rds")
-}
-
-pls <- NULL
-if (!file.exists("pls_log.rds")){
-  pls <- plsr(goal_ratio~.*., data = traindata3, validation="CV", k=5,ncomp=7)
-  saveRDS(pls, file="pls_log.rds")
-}else{
-  pls <- readRDS(file="pls_log.rds")
-}
-
-lasso <- NULL
-if (!file.exists("lasso_log.rds")){
-  lasso <- cv.glmnet(model.matrix(goal_ratio~.*., data = traindata3)[, -1],
-  traindata$goal_ratio,
-  alpha = 1, k = 5, labmda = 10^seq(100, -2, length = 10000))
-  saveRDS(lasso, file="lasso_log.rds")
-}else{
-  lasso <- readRDS(file="lasso_log.rds")
-}
-
 ```
 
 
