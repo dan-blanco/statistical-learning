@@ -22,21 +22,24 @@ library(pls)
 library(glmnet)
 library(MASS)
 library("leaps")
+library("CAST")
 ```
 
 # Read Data 
 
-**IMPORTANT:** A quick comment about modeling. Steve said its better to not log the variable outside the model. He prefers to log it when creating the model. Since we already did that, maybe we can fix it when the project is done.
+1. Interations with LASSO and PSLR
+**IMPORTANT** 12 models were done. 
+  (i) 4 models with goal_ratio as target and goal_log an x value
+  (ii) 4 models with goal_ratio as target and goal an x value
+  (iii) 4 models with log(goal_ratio+1) as target and goal_log as an x value
+  
+  (i) seemed to have the best residual plot
+  
+2. Residual plots
+3. Look at bad residuals
+4. Poster
+5. Predict number of campaings ???
 
-**TASK** - Fix the logs in models. They should be logged when the model is made, not before!
-
-**IMPORTANT** It makes no sense to predict goal ratio (a product of goal and pledged) using the features pledged or goal logged. All of the models on this page were built like that. Other vairables that should not be modeled, and were removed are pledged_log, id and target. It is not meaningful to use target (success or fail) to predict something that has not happened....
-
-**IMPORTANT** Size was not the issue for modeling. There were errors in the data. They are fixed now.
-
-**IMPORTANT** Should we include number of backers count? Think about it, how would someone starting a kickstarter campaign select that? They can select a category, a data... But not backers count. Intresting to see that backers_count is significant in the models. We should talk about that before removing it. May be intresting for an area of future research to predict backers_count.
-
-**IMPORTANT** We should consider looking at the campaings that raised a ridiciouls amount of money, lets say top 5. And lowering the pledged value to the 6th highest...
 
 ```{r warning=FALSE, results="hide"}
 kickstarter_min <- readRDS("final_clean_kickstarter.rds")
@@ -49,8 +52,8 @@ kickstarter_min$name <- NULL
 kickstarter_min$deadline<-NULL 
 kickstarter_min$launched_at<-NULL
 
+#kickstarter_min$backers_count<- NULL #?
 str(kickstarter_min)
- 
 ```
 
 ```{r}
@@ -58,12 +61,8 @@ summary(kickstarter_min)
 ```
 
 
-
-
-
 # change country to continent 
 ```{r warning=FALSE}
-#This changes countries over to continent so we have less levles and still have a variable which puts the area of the project. I have cheked the code with Steve and he said it was clean and easy to read so it was good. 
 cntnt_Europe = c("DK","AT", "BE", "CH","DE","ES", "FR", "GB","IE", "IT","LU", "NL","NO","SE")
 cntnt_Asia = c("HK","JP","SG")
 cntnt_NA = c("US","CA")
@@ -92,16 +91,17 @@ kickstarter_min$country <- NULL
 ```{r}
 str(kickstarter_min)
 ```
+
+
 ```{r}
 summary(kickstarter_min)
 ```
 
 
-
 # Split into train and test 
 ```{r}
 set.seed(456) 
-SplitIndex <- sample(x = c("Train", "Test"), replace = T, prob = c(0.7,0.3), 
+SplitIndex <- sample(x = c("Train", "Test"), replace = T, prob = c(0.8,0.2), 
                      size = nrow(kickstarter_min))
 
 #Subset data into a train and test set based on the SplitIndex vector
@@ -109,18 +109,210 @@ traindata <- kickstarter_min[SplitIndex == "Train", ]
 testdata <- kickstarter_min[SplitIndex == "Test", ]
 ```
 
+# Data for predicting Goal Ratio
+This allows us to create the interactions with * instead of writting them all out. 
+
+```{r}
+traindata2 <- traindata
+traindata2$pledged <- NULL
+traindata2$goal <- NULL
+traindata2$pledged_log <-NULL
+traindata2$id <- NULL
+traindata2$target <- NULL
+```
+
+
+```{r}
+summary(traindata2)
+```
+
+## Vairables in the Model
+
+```{r}
+str(traindata2)
+```
 
 # Variable selection and Modeling
 
-The models below are build with goal_log instead of goal because of the heavy skew in goal. **UPDATE THIS TO BE log(goal) BECAUSE STEVE SAID IT IS BETTER**
+## Test Every Interaction
+Lets use Foward, Backward, PLS, and LASSO to build models!!! With every interaction. This should be FUN!!!
+
+Lets test every interaction with forward.
+```{r}
+fwd_step <- NULL
+if (!file.exists("fwd_step.rds")){
+  lm_model <- lm(goal_ratio~.*., traindata2)
+  fwd_step <- step(lm_model, direction="forward", k=log(nobs(lm_model)))
+  saveRDS(fwd_step, file="fwd_step.rds")
+}else{
+  fwd_step <- readRDS(file="fwd_step.rds")
+}
+
+bck_step <- NULL
+if (!file.exists("bck_step.rds")){
+  lm_model <- lm(goal_ratio~.*., traindata2)
+  bck_step <- step(lm_model, direction="backward", k=log(nobs(lm_model)))
+  saveRDS(bck_step, file="bck_step.rds")
+}else{
+  bck_step <- readRDS(file="bck_step.rds")
+}
+
+pls <- NULL
+if (!file.exists("pls.rds")){
+  pls <- plsr(goal_ratio~.*., data = traindata2, validation="CV", k=5,ncomp=7)
+  saveRDS(pls, file="pls.rds")
+}else{
+  pls <- readRDS(file="pls.rds")
+}
+
+lasso <- NULL
+if (!file.exists("lasso.rds")){
+  lasso <- cv.glmnet(model.matrix(goal_ratio~.*., data = traindata2)[, -1],
+  traindata$goal_ratio,
+  alpha = 1, k = 5, labmda = 10^seq(100, -2, length = 10000))
+  saveRDS(lasso, file="lasso.rds")
+}else{
+  lasso <- readRDS(file="lasso.rds")
+}
+
+```
+
+```{r}
+plot(bck_step)
+```
+
+```{r}
+plot(lasso)
+```
+
+```{r}
+predict(lasso,type="coefficients",s=lasso$lambda.1se)
+```
+
+
+```{r}
+bck_step
+```
+
+
+```{r}
+plot(fwd_step)
+```
+
+# Variable selection and Modeling
+
+## Test Every without goal logged
+These models do not use the log of goal
+
+```{r}
+traindata4 <- traindata
+traindata4$pledged <- NULL
+traindata4$goal_log <- NULL
+traindata4$pledged_log <-NULL
+traindata4$id <- NULL
+traindata4$target <- NULL
+
+fwd_step <- NULL
+if (!file.exists("fwd_step_goal.rds")){
+  lm_model <- lm(goal_ratio~.*., traindata4)
+  fwd_step <- step(lm_model, direction="forward", k=log(nobs(lm_model)))
+  saveRDS(fwd_step, file="fwd_step_goal.rds")
+}else{
+  fwd_step <- readRDS(file="fwd_step_goal.rds")
+}
+
+bck_step <- NULL
+if (!file.exists("bck_step_goal.rds")){
+  lm_model <- lm(goal_ratio~.*., traindata4)
+  bck_step <- step(lm_model, direction="backward", k=log(nobs(lm_model)))
+  saveRDS(bck_step, file="bck_step_goal.rds")
+}else{
+  bck_step <- readRDS(file="bck_step_goal.rds")
+}
+
+pls <- NULL
+if (!file.exists("pls_goal.rds")){
+  pls <- plsr(goal_ratio~.*., data = traindata4, validation="CV", k=5,ncomp=7)
+  saveRDS(pls, file="pls_goal.rds")
+}else{
+  pls <- readRDS(file="pls_goal.rds")
+}
+
+lasso <- NULL
+if (!file.exists("lasso_goal.rds")){
+  lasso <- cv.glmnet(model.matrix(goal_ratio~.*., data = traindata4)[, -1],
+  traindata$goal_ratio,
+  alpha = 1, k = 5, labmda = 10^seq(100, -2, length = 10000))
+  saveRDS(lasso, file="lasso_goal.rds")
+}else{
+  lasso <- readRDS(file="lasso_goal.rds")
+}
+```
+
+```{r}
+plot(bck_step)
+```
+
+
+
+## Test Every Interaction with goal_ratio Logged
+Same thing as before except we log the goal ratio
+```{r}
+
+traindata3 <- traindata2
+traindata3$goal_ratio <- log(traindata3$goal_ratio+1)
+
+fwd_step <- NULL
+if (!file.exists("fwd_step_log.rds")){
+  lm_model <- lm(goal_ratio~.*., traindata3)
+  fwd_step <- step(lm_model, direction="forward", k=log(nobs(lm_model)))
+  saveRDS(fwd_step, file="fwd_step_log.rds")
+}else{
+  fwd_step <- readRDS(file="fwd_step_log.rds")
+}
+
+bck_step <- NULL
+if (!file.exists("bck_step_log.rds")){
+  lm_model <- lm(goal_ratio~.*., traindata3)
+  bck_step <- step(lm_model, direction="backward", k=log(nobs(lm_model)))
+  saveRDS(bck_step, file="bck_step_log.rds")
+}else{
+  bck_step <- readRDS(file="bck_step_log.rds")
+}
+
+pls <- NULL
+if (!file.exists("pls_log.rds")){
+  pls <- plsr(goal_ratio~.*., data = traindata3, validation="CV", k=5,ncomp=7)
+  saveRDS(pls, file="pls_log.rds")
+}else{
+  pls <- readRDS(file="pls_log.rds")
+}
+
+lasso <- NULL
+if (!file.exists("lasso_log.rds")){
+  lasso <- cv.glmnet(model.matrix(goal_ratio~.*., data = traindata3)[, -1],
+  traindata$goal_ratio,
+  alpha = 1, k = 5, labmda = 10^seq(100, -2, length = 10000))
+  saveRDS(lasso, file="lasso_log.rds")
+}else{
+  lasso <- readRDS(file="lasso_log.rds")
+}
+
+```
+
+
+```{r}
+plot(fwd_step)
+```
+
 
 ## Best subset with AIC
 Best step using AIC in direction "Backward". These are the default arguments.
 
-
 ```{r warning=FALSE, results="hide"}
+#traindata$goal_ratio[traindata$goal_ratio <= 4] <- 4
 lm_model <- lm(goal_ratio~.-pledged-goal-pledged_log-id-target, traindata)
-best_step <- step(lm_model, direction="backward", k=log(nobs(lm_model)))
+best_step <- step(lm_model, direction="both", k=log(nobs(lm_model)))
 ```
 
 Lets print out the best AIC model using Both directionial search
@@ -131,7 +323,7 @@ best_step
 ## PLS
 
 ```{r}
-pls <- plsr(goal_ratio~.-pledged-goal-pledged_log-id-target , data = traindata, validation="CV", k=10,ncomp=7)
+pls <- plsr(goal_ratio~.*., data = traindata2, validation="CV", k=5,ncomp=7)
 validationplot(pls,val.type="RMSEP")
 ```
 ```{r}
@@ -143,7 +335,7 @@ pls$loadings
 ## Lasso 
 
 ```{r}
-lasso <- cv.glmnet(model.matrix(goal_ratio~.-pledged-goal-pledged_log-id-target, data = traindata)[, -1],
+lasso <- cv.glmnet(model.matrix(goal_ratio~.*., data = traindata)[, -1],
   traindata$goal_ratio,
   alpha = 1, k = 10, labmda = 10^seq(100, -2, length = 10000)
 )
@@ -164,6 +356,16 @@ predict(lasso,type="coefficients",s=lasso$lambda.min)
 ```{r}
 plot(best_step)
 ```
+
+```{r}
+traindata$res <- best_step$residuals
+```
+
+```{r}
+traindata[traindata$res > 100]
+```
+
+
 
 ##Lets try Gamma Distribution
 
@@ -192,8 +394,6 @@ gstep
 ```{r}
 plot(residuals(gstep,"pearson")~fitted(gstep),pch=16)
 ```
-
-
 
 
 #Binominal model 
