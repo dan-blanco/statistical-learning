@@ -38,7 +38,7 @@ library("leaps")
 
 **IMPORTANT** We should consider looking at the campaings that raised a ridiciouls amount of money, lets say top 5. And lowering the pledged value to the 6th highest...
 
-```{r warning=FALSE}
+```{r warning=FALSE, results="hide"}
 kickstarter_min <- readRDS("final_clean_kickstarter.rds")
  
 kickstarter_min$cat_child <- NULL
@@ -118,7 +118,7 @@ The models below are build with goal_log instead of goal because of the heavy sk
 Best step using AIC in direction "Backward". These are the default arguments.
 
 
-```{r}
+```{r warning=FALSE, results="hide"}
 lm_model <- lm(goal_ratio~.-pledged-goal-pledged_log-id-target, traindata)
 best_step <- step(lm_model, direction="backward", k=log(nobs(lm_model)))
 ```
@@ -130,7 +130,7 @@ best_step
 
 ## PLS
 
-```{r, eval = FALSE}
+```{r}
 pls <- plsr(goal_ratio~.-pledged-goal-pledged_log-id-target , data = traindata, validation="CV", k=10,ncomp=7)
 validationplot(pls,val.type="RMSEP")
 ```
@@ -179,7 +179,7 @@ When predicting pledged, it worked better with goal and without goal_log.
 **IMPORTANT** 0 values not allowed for gamma. Lets make them = 0.01
 
 
-```{r}
+```{r warning=FALSE, results="hide"}
 traindataGAMMA <- traindata
 traindataGAMMA$pledged[traindataGAMMA$pledged == 0] <- .01
 gmod<-glm(pledged~.-goal_ratio-goal_log-pledged_log-id-target-backers_count,family=Gamma(link=identity),traindataGAMMA)
