@@ -5,7 +5,6 @@ output: pdf_document
 ---
 
 ```{r message=FALSE, warning=FALSE}
-#Don't remove my libraries, I use them all. ada
 library(tidyr)
 library(caret)
 library(dplyr)
@@ -170,71 +169,6 @@ if (!file.exists("lasso.rds")){
 
 ```
 
-```{r}
-plot(bck_step)
-```
-
-```{r}
-plot(lasso)
-```
-
-```{r}
-predict(lasso,type="coefficients",s=lasso$lambda.1se)
-```
-
-
-```{r}
-bck_step
-```
-
-
-```{r}
-plot(fwd_step)
-```
-
-
-## Best subset with AIC
-Best step using AIC in direction "Backward". These are the default arguments.
-
-```{r warning=FALSE, results="hide"}
-#traindata$goal_ratio[traindata$goal_ratio <= 4] <- 4
-lm_model <- lm(goal_ratio~.-pledged-goal-pledged_log-id-target, traindata)
-best_step <- step(lm_model, direction="both", k=log(nobs(lm_model)))
-```
-
-Lets print out the best AIC model using Both directionial search
-```{r}
-best_step
-```
-
-## PLS
-
-```{r}
-pls <- plsr(goal_ratio~.*., data = traindata2, validation="CV", k=5,ncomp=7)
-validationplot(pls,val.type="RMSEP")
-```
-```{r}
-pls$loadings
-```
-
-
-
-## Lasso 
-
-```{r}
-lasso <- cv.glmnet(model.matrix(goal_ratio~.*., data = traindata)[, -1],
-  traindata$goal_ratio,
-  alpha = 1, k = 10, labmda = 10^seq(100, -2, length = 10000)
-)
-plot(lasso)
-```
-
-```{r}
-predict(lasso,type="coefficients",s=lasso$lambda.min)
-```
-
-
-
 
 #Residual plot of best step
 
@@ -265,13 +199,14 @@ PREDICTING PLEDGED
 When predicting pledged, it worked better with goal and without goal_log.
 
 
-**IMPORTANT** 0 values not allowed for gamma. Lets make them = 0.01
+**IMPORTANT** 0 values not allowed for gamma, add 1
+Since our Y variable is skewed, lets try a non normal distribtion
 
 
 ```{r warning=FALSE, results="hide"}
-traindataGAMMA <- traindata
-traindataGAMMA$pledged[traindataGAMMA$pledged == 0] <- .01
-gmod<-glm(pledged~.-goal_ratio-goal_log-pledged_log-id-target-backers_count,family=Gamma(link=identity),traindataGAMMA)
+traindataGAMMA <- traindata2
+traindataGAMMA$goal_ratio <- traindataGAMMA$goal_ratio + 1
+gmod<-glm(goal_ratio~.,family=Gamma(link=identity),traindataGAMMA)
 gstep<-step(gmod,trace=FALSE)
 gstep
 ```
