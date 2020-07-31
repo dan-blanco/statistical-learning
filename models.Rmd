@@ -4,6 +4,12 @@ date: "14/07/2020"
 output: pdf_document
 ---
 
+**TODO**
+1. Pick a few models that have good plots
+    (i) With those models compare then with a sample of the data
+2. Write the report
+3. Poster? R package? PDF?
+
 ```{r message=FALSE, warning=FALSE}
 library(tidyr)
 library(caret)
@@ -26,13 +32,7 @@ library("CAST")
 
 # Read Data 
 
-1. Interations with LASSO and PSLR
-2. Residual plots
-3. Look at bad residuals
-4. Poster
-5. Predict number of campaings ???
-
-
+Some features we do not want in our model. Mostly because they are strings, factors with too many levles, or other features represent the same data.
 ```{r warning=FALSE, results="hide"}
 kickstarter_min <- readRDS("final_clean_kickstarter.rds")
  
@@ -43,17 +43,18 @@ kickstarter_min$country_displayable_name <- NULL
 kickstarter_min$name <- NULL
 kickstarter_min$deadline<-NULL 
 kickstarter_min$launched_at<-NULL
-
-#kickstarter_min$backers_count<- NULL #?
 str(kickstarter_min)
 ```
 
+## Descriptive Statistics of Data
 ```{r}
 summary(kickstarter_min)
 ```
 
 
-# change country to continent 
+## Change Country to Continent
+This feature engineering will reduce the number of categories for the model.
+
 ```{r warning=FALSE}
 cntnt_Europe = c("DK","AT", "BE", "CH","DE","ES", "FR", "GB","IE", "IT","LU", "NL","NO","SE")
 cntnt_Asia = c("HK","JP","SG")
@@ -75,66 +76,67 @@ kickstarter_min$continent[na] <- "NorthAmerica"
 kickstarter_min$continent[sa] <- "SouthAmerica"
 kickstarter_min$continent[pacific] <- "Pacific"
 
-kickstarter_min$continent <- as.factor(kickstarter_min$continent) # obvisouly needs to be a factor.....
+kickstarter_min$continent <- as.factor(kickstarter_min$continent) 
+kickstarter_min$backers_count_log <- log(kickstarter_min$backers_count+1)
+kickstarter_min$backers_count <- NULL
 kickstarter_min$country <- NULL
 ```
 
-
+**Print the summary to make sure the changes were correct**
 ```{r}
 str(kickstarter_min)
 ```
 
-
+**Lets have a look at the continent descriptive stats**
 ```{r}
-summary(kickstarter_min)
+summary(kickstarter_min[c("continent")])
 ```
 
 
-# Split into train and test 
+ 
 ```{r}
-set.seed(456) 
-SplitIndex <- sample(x = c("Train", "Test"), replace = T, prob = c(0.8,0.2), 
-                     size = nrow(kickstarter_min))
-
-#Subset data into a train and test set based on the SplitIndex vector
-traindata <- kickstarter_min[SplitIndex == "Train", ]
-testdata <- kickstarter_min[SplitIndex == "Test", ]
+# Split into train and test
+# set.seed(456) 
+# SplitIndex <- sample(x = c("Train", "Test"), replace = T, prob = c(0.8,0.2), 
+#                      size = nrow(kickstarter_min))
+# 
+# #Subset data into a train and test set based on the SplitIndex vector
+# traindata <- kickstarter_min[SplitIndex == "Train", ]
+# testdata <- kickstarter_min[SplitIndex == "Test", ]
 ```
 
-# Data for predicting Goal Ratio
-This allows us to create the interactions with * instead of writting them all out. 
+# Data for LM model
 
 ```{r}
-traindata2 <- traindata
-traindata2$pledged <- NULL
-traindata2$goal <- NULL
-traindata2$pledged_log <-NULL
-traindata2$id <- NULL
-traindata2$target <- NULL
+lm_data <- kickstarter_min
+lm_data$pledged <- NULL
+lm_data$goal <- NULL
+lm_data$pledged_log <-NULL
+lm_data$id <- NULL
+lm_data$target <- NULL
 ```
 
-
+**Have a look at the data before modeling**
 ```{r}
-summary(traindata2)
+summary(lm_data)
 ```
 
-## Vairables in the Model
-
 ```{r}
-str(traindata2)
+str(lm_data)
 ```
 
 # Variable selection and Modeling
 
 ## Test Every Interaction
-Lets use Foward, Backward, PLS, and LASSO to build models!!! With every interaction. This should be FUN!!!
+Lets use Foward and backward to obtain the best models with BIC. **BIC is used because we are testing every interactions, which would be a large model. BIC is a conservative information criteria that will select a good fit with fewer features then AIC.**
 
-Lets test every interaction with forward.
+PLS and LASSO are tested without the interactions just to see if these models have similar results to the Foward and Backward models.
+
 ```{r}
 fwd_step <- NULL
 if (!file.exists("fwd_step.rds")){
-  lm_model <- lm(goal_ratio~.*., traindata2)
-  fwd_step <- step(lm_model, direction="forward", k=log(nobs(lm_model)))
+  lm_model <- lm(goal_ratio~.*., lm_data)
+  fwd_step <- step(lm_model, direction="forward", k=log(nobs(lm_model))) # BIC to get less variables
   saveRDS(fwd_step, file="fwd_step.rds")
 }else{
   fwd_step <- readRDS(file="fwd_step.rds")
@@ -142,7 +144,7 @@ if (!file.exists("fwd_step.rds")){
 
 bck_step <- NULL
 if (!file.exists("bck_step.rds")){
-  lm_model <- lm(goal_ratio~.*., traindata2)
+  lm_model <- lm(goal_ratio~.*., lm_data)
   bck_step <- step(lm_model, direction="backward", k=log(nobs(lm_model)))
   saveRDS(bck_step, file="bck_step.rds")
 }else{
@@ -151,7 +153,7 @@ if (!file.exists("bck_step.rds")){
 
 pls <- NULL
 if (!file.exists("pls.rds")){
-  pls <- plsr(goal_ratio~.*., data = traindata2, validation="CV", k=5,ncomp=7)
+  pls <- plsr(goal_ratio~., data = lm_data, validation="CV", k=5,ncomp=7)
   saveRDS(pls, file="pls.rds")
 }else{
   pls <- readRDS(file="pls.rds")
@@ -159,8 +161,8 @@ if (!file.exists("pls.rds")){
 
 lasso <- NULL
 if (!file.exists("lasso.rds")){
-  lasso <- cv.glmnet(model.matrix(goal_ratio~.*., data = traindata2)[, -1],
-  traindata$goal_ratio,
+  lasso <- cv.glmnet(model.matrix(goal_ratio~., data = lm_data)[, -1],
+  lm_data$goal_ratio,
   alpha = 1, k = 5, labmda = 10^seq(100, -2, length = 10000))
   saveRDS(lasso, file="lasso.rds")
 }else{
@@ -169,65 +171,188 @@ if (!file.exists("lasso.rds")){
 
 ```
 
+## What do LASSO and PLS think?
 
-#Residual plot of best step
-
-**TO-DO** Residual plot for LASSO and PLS
-
+### Lasso Coefficients
 ```{r}
-plot(best_step)
+predict(lasso,type="coefficients",s=lasso$lambda.min)
+```
+
+### PLS Coefficients
+```{r}
+validationplot(pls,val.type="RMSEP")
 ```
 
 ```{r}
-traindata$res <- best_step$residuals
+pls$loadings
+```
+
+
+## Which has a better AIC?
+
+fwd_step has a better AIC
+
+```{r}
+AIC(fwd_step)
 ```
 
 ```{r}
-traindata[traindata$res > 100]
+AIC(bck_step)
+```
+
+## Look at the residuals
+
+They dont look good. Clearly this is not the correct distribution.
+```{r}
+# lm <- lm(goal_ratio ~ + cat_parent+month+number_of_days+
+#      backers_count_log+name_length+(staff_pick
+#     + blurb_length + goal_log + 
+#     continent ) * (staff_pick
+#       + blurb_length  + goal_log + 
+#     continent ), lm_data, y=T, x=T)
+# #lm <- step(lm,trace=FALSE)
+# lm <-cv.lm(lm,k=10)
+plot(lm_data$goal_ratio,abs(residuals(fwd_step)),pch=16)
 ```
 
 
 
-##Lets try Gamma Distribution
+# Gamma Distribution
 
-PREDICTING GOAL_RATIO
-This is creating issues because Gamma can not take negative numbers or 0. So goal ratios or pledged of 0 need to be converted. If its too small Log as link function does not handle it well. 
+We tried to change the 0's to half of the minimum value greater than 0. It did not improve the Gamma dist, and it would not run with the Inverse Guasium dist.
 
-The inverse and identity link function gives the error "Error: no valid set of coefficients has been found: please supply starting values"
+```{r}
+gamma_data <- kickstarter_min
+#gamma_data$goal_ratio[gamma_data$goal_ratio==0] <- min(gamma_data$goal_ratio[gamma_data$goal_ratio>0]) *0.5
+gamma_data$goal_ratio <- gamma_data$goal_ratio +1
+min(gamma_data$goal_ratio)
+```
 
-PREDICTING PLEDGED
-When predicting pledged, it worked better with goal and without goal_log.
-
-
-**IMPORTANT** 0 values not allowed for gamma, add 1
-Since our Y variable is skewed, lets try a non normal distribtion
-
-
+**First lets try it with the interactions that we believe are meaningful**
 ```{r warning=FALSE, results="hide"}
-traindataGAMMA <- traindata2
-traindataGAMMA$goal_ratio <- traindataGAMMA$goal_ratio + 1
-gmod<-glm(goal_ratio~.,family=Gamma(link=identity),traindataGAMMA)
-gstep<-step(gmod,trace=FALSE)
+gmod<-glm(goal_ratio ~ + cat_parent+month+number_of_days+
+     backers_count_log+name_length+(staff_pick
+    + blurb_length + goal_log + 
+    continent ) * (staff_pick
+      + blurb_length  + goal_log + 
+    continent ),family=Gamma(link=log),gamma_data)
 gstep
 ```
 
+## First Gamma Residual plot
 
-**QUESTION** - When using pearson residuals, are they suppose to be random
+Not the best.
 ```{r}
-plot(residuals(gstep,"pearson")~fitted(gstep),pch=16)
+plot(gstep$linear.predictors,abs(residuals(gstep,type="deviance")),pch=16)
 ```
+
+
+
+## Change the Link Function?
+We get this error.   
+Error: no valid set of coefficients has been found: please supply starting values
+
+Finding good starting values is difficult. Changing the link function could be a good area for future research.
+
+```{r}
+# gmod<-glm(goal_ratio ~ + cat_parent+month+number_of_days+
+#      backers_count_log+name_length+(staff_pick
+#     + blurb_length + goal_log + 
+#     continent ) * (staff_pick
+#       + blurb_length  + goal_log + 
+#     continent ),family=Gamma(link=inverse),gamma_data)
+# gstep
+```
+
+# Inverse Guasion
+```{r}
+IG_data <- gamma_data
+```
+
+
+```{r warning=FALSE, results="hide"}
+IG<-glm(goal_ratio ~ + cat_parent+month+number_of_days+
+     backers_count_log+name_length+(staff_pick
+     + goal_log + 
+    continent ) * (staff_pick
+        + goal_log + 
+    continent ),family=inverse.gaussian(link=log),IG_data)
+IG
+```
+
+## Residauls Inverse Guasion 
+Looks much better!
+```{r}
+plot(IG$linear.predictors,abs(residuals(IG,type="deviance")),pch=16)
+```
+
+## Remove some features
+```{r}
+anova(IG,test="F")
+```
+
+## Less Variance Model
+After removing names_length, and two interactive terms, it seems the residual plot is just as good.
+
+```{r warning=FALSE, results="hide"}
+IG<-glm(goal_ratio ~ + cat_parent+month+number_of_days+
+     backers_count_log+continent+(staff_pick) * (goal_log),family=inverse.gaussian(link=log),IG_data)
+```
+
+```{r}
+plot(IG$linear.predictors,abs(residuals(IG,type="deviance")),pch=16)
+```
+
+## Lets try all interactions
+```{r warning=FALSE, results="hide"}
+if (!file.exists("IG_step.rds")){
+  IG<-glm(goal_ratio ~ .*.,family=inverse.gaussian(link=log),IG_data)
+  IG<-step(IG,trace=FALSE,k=log(nobs(IG)))
+  saveRDS(IG, file="IG_step.rds")
+}else{
+  IG <- readRDS("IG_step.rds")
+}
+```
+
+## Best residual - IG All Interactions
+This residual plot has the best interactions
+```{r}
+plot(IG$linear.predictors,residuals(IG,type="deviance"),pch=16)
+```
+
+## Remove some features
+Lets take the model we produced with Step BIC and see if we can remove more features. There are simply too many of them!
+```{r}
+anova(IG,test="F")
+```
+
 
 
 #Binominal model 
 
-
-##Baseline model with goal  
 ```{r}
-binominal_baseline <- glm(target ~ backers_count +
-                            cat_parent  +
-                            month + goal + staff_pick  +
-                            number_of_days + blurb_length +
-                            name_length , data = traindata, family = binomial)
+bi_data <- kickstarter_min
+bi_data$pledged <- NULL
+bi_data$goal <- NULL
+bi_data$pledged_log <-NULL
+bi_data$id <- NULL
+bi_data$goal_ratio <- NULL
+```
+
+```{r}
+summary(bi_data)
+```
+
+
+##Baseline model  
+```{r}
+if (!file.exists("binomial.rds")){
+  binominal_baseline <- glm(target ~.*. , data = bi_data, family = binomial)
+  binominal_baseline <-step(binominal_baseline,trace=FALSE)
+  saveRDS(binominal_baseline, file = "binomial.rds")
+}else{
+  binominal_baseline <- readRDS("binomial.rds")
+}
 ```
 
 
@@ -249,7 +374,7 @@ predictLog <- function(df,log, thresh=0.5, t=T, f=F){
   return(df)
 }
 
-results <- predictLog(testdata, binominal_baseline, t="successful", f="failed")
+results <- predictLog(bi_data, binominal_baseline, t="successful", f="failed")
 
 results$ClassPredict <- as.factor(results$ClassPredict)
 
@@ -260,10 +385,7 @@ kable(confusionStats_df(results,"target")[c("Accuracy","Sensitivity","Specificit
   kable_styling(bootstrap_options = c("striped", "scale_down", "hover", "condensed")) 
 
 
-
 ```
-
-
 
 
 ##ROC 
@@ -274,8 +396,57 @@ plot.roc(results$target,results$fit, col = "royalblue4", backgroundcol = "lights
 
 ##Residual plot 
 
+Good at discreminating, lot very well calibrated - Dont use probabilities
+
 ```{r}
 binnedplot(results$fit, as.numeric(results$target) - as.numeric(results$ClassPredict), col.pts = "royalblue4", col.int = "lightskyblue")
 ```
+
+What about a simpler model?
+
+
+```{r}
+binominal_baseline <- glm(target ~., data = bi_data, family = binomial)
+binominal_baseline <-step(binominal_baseline,trace=FALSE)
+```
+
+The interactions made no difference.
+```{r}
+results <- predictLog(bi_data, binominal_baseline, t="successful", f="failed")
+
+results$ClassPredict <- as.factor(results$ClassPredict)
+
+confusionStats_df(results,"target")[c("Accuracy","Sensitivity","Specificity","Precision")]
+
+kable(confusionStats_df(results,"target")[c("Accuracy","Sensitivity","Specificity","Precision")]* 100, digits = 2, caption = "Model performance in percentage", booktabs = TRUE) %>%
+  kable_styling(font_size = 10, full_width = F)%>%
+  kable_styling(bootstrap_options = c("striped", "scale_down", "hover", "condensed")) 
+
+```
+
+##ROC 
+```{r warning=FALSE}
+plot.roc(results$target,results$fit, col = "royalblue4", backgroundcol = "lightskyblue",
+         main = "Binominal baseline model", print.auc = TRUE)
+```
+
+```{r}
+binnedplot(results$fit, as.numeric(results$target) - as.numeric(results$ClassPredict), col.pts = "royalblue4", col.int = "lightskyblue")
+```
+
+
+#Conclusion
+
+We could have performed regularization with the different distributions. Our binomial model is great at discrimination. However, it is not a well calibrated model. Predicting the percentage of liklihood a campaign will succeed with this binomial model is not reliable, as seen in the residual plot. The variance of the errors are wide with predictions close to 50%. Overall the model did achieve a great accuracy and AUC.
+
+In the models using the best subset with all interactions with BIC produced a lot of coefficients. We tried reducing the coefficients by examing the deviances, and removing interactions that were believed to not be significant or causing too many coefficients. The reduction in features will create less variability, meaning the confidence intervals are more reliable and predictions are more precise. Nonetheless, removing important coefficients did increase the bias of the model. 
+
+The models include backers count. It is true that this would not be known, but the models included it so that individuals starting a kickstarter campaign would need to know how many backers they would need. 
+
+Areas of future research would include predicting the number of backers. 
+
+
+
+
 
 
