@@ -223,6 +223,11 @@ We tried to change the 0's to half of the minimum value greater than 0. It did n
 
 ```{r}
 gamma_data <- kickstarter_min
+gamma_data$pledged <- NULL
+gamma_data$goal <- NULL
+gamma_data$pledged_log <-NULL
+gamma_data$id <- NULL
+gamma_data$target <- NULL
 #gamma_data$goal_ratio[gamma_data$goal_ratio==0] <- min(gamma_data$goal_ratio[gamma_data$goal_ratio>0]) *0.5
 gamma_data$goal_ratio <- gamma_data$goal_ratio +1
 min(gamma_data$goal_ratio)
@@ -306,7 +311,7 @@ plot(IG$linear.predictors,abs(residuals(IG,type="deviance")),pch=16)
 ## Lets try all interactions
 ```{r warning=FALSE, results="hide"}
 if (!file.exists("IG_step.rds")){
-  IG<-glm(goal_ratio ~ .*.,family=inverse.gaussian(link=log),IG_data)
+  IG<-glm(goal_ratio ~ .*.,family=inverse.gaussian(link=log),sample_n(IG_data,nrow(IG_data)*0.8,T))
   IG<-step(IG,trace=FALSE,k=log(nobs(IG)))
   saveRDS(IG, file="IG_step.rds")
 }else{
@@ -348,7 +353,7 @@ summary(bi_data)
 ```{r}
 if (!file.exists("binomial.rds")){
   binominal_baseline <- glm(target ~.*. , data = bi_data, family = binomial)
-  binominal_baseline <-step(binominal_baseline,trace=FALSE)
+  binominal_baseline <-step(binominal_baseline,trace=FALSE, k=log(nobs(binominal_baseline)))
   saveRDS(binominal_baseline, file = "binomial.rds")
 }else{
   binominal_baseline <- readRDS("binomial.rds")
