@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta charset="utf-8" />
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="generator" content="pandoc" />
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+
+
+<title>Kickstarter project</title>
+
+<script src="justtemplate_files/header-attrs-2.3/header-attrs.js"></script>
+<script src="justtemplate_files/kePrint-0.0.1/kePrint.js"></script>
+
+
+
+
+
+<!--
+Font-awesome icons ie github or twitter
+-->
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.1/css/all.css" integrity="sha384-50oBUHEmvpQ+1lW4y57PTFmhCaXp0ML5d60M1M7uH2+nqUivzIebhndOJK28anvf" crossorigin="anonymous">
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.1/css/brands.css" integrity="sha384-n9+6/aSqa9lBidZMRCQHTHKJscPq6NW4pCQBiMmHdUCvPN8ZOg2zJJTkC7WIezWv" crossorigin="anonymous">
+
+<!--
+Google fonts api stuff
+-->
+<link href='https://fonts.googleapis.com/css?family=Special Elite' rel='stylesheet'>
+<link href='https://fonts.googleapis.com/css?family=Crimson Text' rel='stylesheet'>
+
+<!--
+Here are the required style attributes for css to make this poster work :)
+-->
+<style>
+@page {
+size: 36in 48in;
+margin: 0;
+padding: 0;
+}
+body {
+margin: 0px;
+padding: 0px;
+width: 36in;
+height: 48in;
+text-align: justify;
+font-size: 45px;
+line-height: 1.05;
+}
+/* RMarkdown Class Styles */
+/* center align leaflet map,
+from https://stackoverflow.com/questions/52112119/center-leaflet-in-a-rmarkdown-document */
+.html-widget {
+margin: auto;
+position: sticky;
+margin-top: 2cm;
+margin-bottom: 2cm;
+}
+.leaflet.html-widget.html-widget-static-bound.leaflet-container.leaflet-touch.leaflet-fade-anim.leaflet-grab.leaflet-touch-drag.leaflet-touch-zoom {
+position: sticky;
+width: 100%;
+}
+pre.sourceCode.r, pre.sourceCode.python {
+background-color: #ffffff20;
+border: solid white 1mm;
+border-radius: 0.5em;
+padding: 4mm;
+margin: auto;
+margin-top: 1em;
+margin-bottom: 1em;
+/* align-items: center; */
+}
+div.sourceCode {
+background-color: transparent;
+width: 85%;
+margin-left: auto;
+margin-right: auto;
+}
+code.sourceCode.r, code.sourceCode.python {
+background-color: transparent;
+font-size: 20pt;
+border-radius: 2mm;
+}
+code {
+font-size: 25pt;
+font-family: monospace;
+background-color: white24;
+color: white;
+padding: 1.2mm;
+line-height: 1;
+border-radius: 2mm;
+}
+caption {
+margin-bottom: 10px;
+font-size: 20pt;
+font-style: italic;
+}
+
+tbody tr:nth-child(odd) {
+    background-color: white20;
+}
+.table>thead>tr>th, .table>tbody>tr>th, .table>tfoot>tr>th, .table>thead>tr>td, .table>tbody>tr>td, .table>tfoot>tr>td{
+  border-spacing: 0;
+  font-size: 40%;
+  border-style: none;
+  padding-top: 15px;
+  padding-bottom: 15px;
+  padding-right: 1em;
+  padding-left: 1em;
+  line-height: 1em;
+}
+table {
+  margin: auto;
+}
+th {
+  padding-left: 5mm;
+  padding-right: 5mm;
+}
+.caption {
+font-size: 20pt;
+font-style: italic;
+padding-top: 0;
+}
+.references {
+font-size: 20px;
+line-height: 90%;
+}
+/* Create three unequal columns that floats next to each other */
+.column {
+float: left;
+padding: 0px;
+}
+.outer {
+width: 36in;
+height: calc(48in *  (1 - 0.2 - 0.1 - 0.01) );
+-webkit-column-count: 3; /* Chrome, Safari, Opera */
+-moz-column-count: 3; /* Firefox */
+column-count: 3;
+-webkit-column-fill: auto;
+-moz-column-fill: auto;
+column-fill: auto;
+column-gap: 0;
+padding-left: 0cm;
+padding-right: 0cm;
+/* -webkit-column-rule-width: 50%;
+-moz-column-rule-width: 50%;
+column-rule-width: 50%; */
+-webkit-column-rule-style: none;
+-moz-column-rule-style: none;
+column-rule-style: none;
+-webkit-column-rule-color: black;
+-moz-column-rule-color: black;
+column-rule-color: black;
+background-color: #ffffff;
+font-family: Crimson Text;
+margin-top: calc(48in *  0.2 );
+padding-top: 1em;
+padding-bottom: 1em;
+}
+span.citation {
+  color: white;
+  font-weight: bold;
+}
+a {
+text-decoration: none;
+color: white;
+}
+#title {
+font-size: 125pt;
+text-align: left;
+margin: 0;
+line-height: 98%;
+border-bottom: 0;
+font-weight: normal;
+background: 0;
+}
+#author {
+color:#6faef5;
+margin: 0;
+line-height: 85%;
+font-size: 1.17em;
+}
+#affiliation {
+padding-top: 0.1em;
+color: ;
+font-style: italic;
+font-size: 25px;
+margin: 0;
+}
+sup {
+color: #6F8196;
+}
+.affiliation sup {
+font-size: 20px;
+}
+.author {
+text-align: left;
+}
+.author sup {
+font-size: 30px;
+}
+.author_extra {
+color: white;
+margin: 0;
+line-height: 85%;
+font-size: 35px;
+text-align: left;
+}
+.outer h1, h2, h3, h4, h5, h6 {
+text-align: center;
+margin: 0;
+font-weight: bold;
+}
+.section h1 {
+  text-align:center;
+  padding-bottom:5px;
+  background:
+    linear-gradient(
+      to left,
+      #ffffff 1%,
+      #ffffff 20%,
+      #6faef575 33%,
+      #6faef5 50%,
+      #6faef575 66%,
+      #ffffff 80%,
+      #ffffff 99%
+    )
+    left
+    bottom
+    #ffffff
+    no-repeat;
+  background-size:100% 5px ;
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+.outer h2 {
+text-align: center;
+}
+.outer p, .level2 {
+color: #000000;
+}
+.outer ol {
+padding-left: 8%;
+padding-right: 8%;
+text-align: left;
+}
+.main {
+width: 36in;
+height: calc(48in * 0.2);
+position: absolute;
+background-color: #6faef5;
+color: #ffffff90;
+font-family: Special Elite;
+background-image: linear-gradient(#6faef5 50%,white);
+}
+.main strong {
+color: #ffffff;
+}
+.main strong > sup {
+color: #ffffff;
+}
+.main sup {
+color: #ffffff90;
+}
+#main-img-left {
+width: 10%;
+left: 0.5in;
+bottom: 0.2in;
+position: absolute;
+}
+#main-img-center {
+width: 10%;
+left: calc(36in * 0.45);
+bottom: 0.5in;
+position: absolute;
+}
+#main-img-right {
+width: 10%;
+right: 0.5in;
+bottom: 0.2in;
+position: absolute;
+}
+.main p {
+font-size: 150px;
+font-family: Special Elite;
+text-align: center;
+margin: 0;
+position: absolute;
+top: 50%;
+-ms-transform: translateY(-50%);
+transform: translateY(-50%);
+margin-left: 1em;
+}
+.fab {
+color: #00000060;
+font-size: 25px;
+}
+.twitter, i {
+color: #00000060;
+font-size: 35px;
+text-decoration: none;
+}
+a.email {
+text-decoration: none;
+color: #00000060;
+font-size: 35px;
+}
+.envelope {
+color: #00000060;
+font-size: 5px;
+text-decoration: none;
+}
+.globe {
+color: #00000060;
+font-size: 5px;
+text-decoration: none;
+}
+.globetext {
+color: #00000060;
+font-size: 35px;
+text-decoration: none;
+}
+.poster_wrap {
+width: 36in;
+height: 48in;
+padding: 0cm;
+}
+.main_bottom {
+width: 36in;
+height: calc(48in * 0.1);
+margin-top: calc(48in * (1 - 0.1));
+position: absolute;
+background-color: #6faef5;
+background-image: linear-gradient(white 10%, #6faef5);
+}
+.section {
+  padding-left: 10mm;
+  padding-right: 10mm;
+}
+span > #tab:mytable {
+  font-weight: bold;
+}
+.orcid img {
+  width: 3%;
+}
+.emphasis {
+  background-color: #008080;
+  color: #ffffff;
+  border: solid #0b2045 3mm;
+  margin: 1em;
+  padding-left: 0;
+  padding-right: 0;
+}
+.emphasis h1 {
+  font-weight: bold;
+  background: none;
+  background-color: #0b2045;
+  padding-bottom: 5mm;
+  padding-top: 1mm;
+  margin-top: -1mm;
+  margin-right: -1mm;
+  margin-left: -1mm;
+}
+.emphasis blockquote {
+  border: 0;
+}
+.emphasis ol {
+  padding: 0;
+  padding-left: 8%;
+  font-size: 100%;
+  font-weight: bold;
+}
+.emphasis p {
+  color: #ffffff;
+}
+</style>
+</head>
+<body>
+
+
+<div class="poster_wrap">
+
+<div class="column outer">
+<div class="section">
+<h1 id="title"><strong>Kickstarter project</strong></h1><br>
+<h3 id="author" class="author">
+
+<strong>Panema</strong><sup> 1</sup><br>
+
+   </h3>
+
+<h5 id="author_extra", class="author_extra">
+ Daniel Blanco<sup></sup>
+ Georgia Barry<sup></sup>
+ Benedicte Kjaerran<sup></sup>
+</h5>
+
+
+<p id="affiliation" class="affiliation">
+<sup>1</sup> Bond University
+</p>
+</div>
+
+<div id="introduction" class="section level1">
+<h1>Introduction</h1>
+<p>Kickstarter is an online crowdfunding platform that provides an ‘all-or-nothing’ approach to project funding. The primary aim of this report was to provide models that predict the success of a project launched on Kickstarter, predict the amount pledged by backers to a project, and predict the number of projects launched in 2021.</p>
+<div id="objectives" class="section level2">
+<h2>Objectives</h2>
+<p>This report aims to analyse data sourced from Kickstarter and provide models that answer the following questions:</p>
+<ol style="list-style-type: decimal">
+<li>What factors are likely to increase the amount of money raised, or pledged, on Kickstarter?<br />
+</li>
+<li>What factors influence the success or failure of a project launched on Kickstarter?
+3.How can the probability of success for a given Kickstarter campaign be assessed?</li>
+<li>How many Kickstarter campaigns will be in 2021?</li>
+</ol>
+</div>
+</div>
+<div id="methods" class="section level1">
+<h1>Methods</h1>
+<p>GLM Inverse Gaussian &amp; Binomial were used to create the models</p>
+</div>
+<div id="results-of-the-ig-model" class="section level1">
+<h1>Results of the IG model</h1>
+<p>The residual plot of the IG model</p>
+<div class="figure" style="text-align: center">
+<img src="justtemplate_files/figure-html/residual%20IG-1.png" alt="Residual plot of IG model" width="80%" />
+<p class="caption">
+(#fig:residual IG)Residual plot of IG model
+</p>
+</div>
+<p>Confidence intervalls for the IG model shows</p>
+<pre><code>## [1] -0.09493444 -0.05949653</code></pre>
+<div class="figure" style="text-align: center">
+<img src="justtemplate_files/figure-html/confidence%20interval-1.png" alt="confidence intervalls" width="80%" />
+<p class="caption">
+(#fig:confidence interval)confidence intervalls
+</p>
+</div>
+<div id="binominal-model-results" class="section level2">
+<h2>Binominal model results</h2>
+<pre><code>##    Accuracy Sensitivity Specificity Precision
+## 1 0.9449367   0.9512719   0.9403659 0.9200597</code></pre>
+<table class="table table table-striped table-hover table" style="font-size: 14px; margin-left: auto; margin-right: auto; margin-left: auto; margin-right: auto; margin-left: auto; margin-right: auto;">
+<caption style="font-size: initial !important;">
+<span id="tab:Binominal">Table 1: </span>Model performance in percentage
+</caption>
+<thead>
+<tr>
+<th style="text-align:right;position: sticky; top:0; background-color: lightskyblue;">
+Accuracy
+</th>
+<th style="text-align:right;position: sticky; top:0; background-color: lightskyblue;">
+Sensitivity
+</th>
+<th style="text-align:right;position: sticky; top:0; background-color: lightskyblue;">
+Specificity
+</th>
+<th style="text-align:right;position: sticky; top:0; background-color: lightskyblue;">
+Precision
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:right;">
+94.49
+</td>
+<td style="text-align:right;">
+95.13
+</td>
+<td style="text-align:right;">
+94.04
+</td>
+<td style="text-align:right;">
+92.01
+</td>
+</tr>
+</tbody>
+</table>
+<p><img src="justtemplate_files/figure-html/residual%20binominal-1.png" width="80%" style="display: block; margin: auto;" /></p>
+<p><img src="justtemplate_files/figure-html/ROC%20-1.png" width="80%" style="display: block; margin: auto;" /></p>
+<pre><code>## [1] -1.433742 -1.078409</code></pre>
+<p><img src="justtemplate_files/figure-html/confidence%20binominal-1.png" width="100%" style="display: block; margin: auto;" /></p>
+</div>
+</div>
+<div id="conclusion" class="section level1">
+<h1>Conclusion</h1>
+<p>We could have performed regularization with the different distributions.</p>
+<p>Our binomial model is great at discrimination. The residual plot makes it appear not calibrated, which is true. Howevever, most predictions (109682 / 114432) are greater then 65% or less then 35%.</p>
+<p>In the models using the best subset with all interactions with BIC produced a lot of coefficients. We tried reducing the coefficients by examing the deviances, and removing interactions that were believed to not be significant or causing too many coefficients. The reduction in features will create less variability, meaning the confidence intervals are more reliable and predictions are more precise. Nonetheless, removing important coefficients did increase the bias of the model.</p>
+<p>The models include backers count. It is true that this would not be known, but the models included it so that individuals starting a kickstarter campaign would need to know how many backers they would need.</p>
+<p>Areas of future research would include predicting the number of backers.</p>
+</div>
+<div id="references" class="section level1">
+<h1>References</h1>
+<p>Kickstarter. (2020, July 20). Kickstarter Stats. Retrieved from Kickstarter: <a href="https://www.kickstarter.com/help/stats" class="uri">https://www.kickstarter.com/help/stats</a></p>
+<p>Web Robots. (2020, July). Kickstarter Datasets. Retrieved from Web Robots: <a href="https://webrobots.io/kickstarter-datasets/" class="uri">https://webrobots.io/kickstarter-datasets/</a></p>
+</div>
+
+</div>
+<div class="main">
+<p>Kickstarter projects likeliness of sucess &amp; what make the sucess.</p>
+</div>
+<div class="main_bottom">
+<img id="main-img-left" src=>
+<img id="main-img-center" src=>
+<img id="main-img-right" src=>
+</div>
+</div>
+
+
+
+</body>
+</html>
