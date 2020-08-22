@@ -26,7 +26,7 @@ accent_colour: "#6F8196"
 font_family: "Crimson Text"
 
 main_findings:
-  - "Kickstarter projects likeliness of sucess & what make the sucess."
+  - "Kickstarter projects likeliness of success & what contributes to the success."
 
 output: 
   posterdown::posterdown_betterport:
@@ -162,9 +162,46 @@ knitr::opts_chunk$set(echo = FALSE,
 options(knitr.table.format = "html") 
 ```
 
-# Introduction
+# Introduction of kickstarter 
 
-Kickstarter is an online crowdfunding platform that provides an ‘all-or-nothing’ approach to project funding. The primary aim of this report was to provide models that predict the success of a project launched on Kickstarter, predict the amount pledged by backers to a project, and predict the number of projects launched in 2021.
+Kickstarter is an online crowdfunding platform that provides an ‘all-or-nothing’ approach to project funding. A sample of five years of Kickstarter data, from April 2020 to April 2015, was obtained to make inferences for Kickstarter campaigns.The aim of our research was to provide models that predict the success of a project launched on Kickstarter, predict what factors are likely to increase percentage of a campaigns pledged amount over its goal, and how can the probability of success, or goal ratio, for a given Kickstarter campaign be assessed.
+
+```{r echo=FALSE, fig.align=, fig.height=6, fig.width=12}
+status.freq1 <- kickstarter %>%
+  group_by(target) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count))
+
+status.freq1$target <- factor(status.freq1$target, levels = status.freq1$target)
+ggplot(status.freq1, aes(target, count, fill = count)) +
+  geom_bar(stat = "identity") +
+  ggtitle("Projects by Outcome") +
+  xlab("Project Outcome") +
+  ylab("Frequency") +
+  geom_text(aes(label = count), vjust = -0.5) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    axis.title = element_text(size = 11),
+    axis.text.x = element_text(size = 11, angle = 90),
+    legend.position = "null"
+  ) +
+  scale_fill_gradient(low = "lightskyblue", high = "royalblue4")
+```
+
+```{r echo=FALSE, warning=FALSE}
+# Success vs. Fail by Country
+ggplot(kickstarter) +
+  aes(x = continent, fill = target) +
+  geom_bar(position = "fill") +
+  scale_fill_brewer(palette = "Blues") +
+  labs(x = "continent", y = "Proportion", 
+       title = "Success vs. Failed Kickstarter Campaigns by continent", 
+       subtitle = "as proportion", fill = "Outcome:") +
+  coord_flip() +
+  theme_minimal()
+```
+ 
 
 ```{r, include=FALSE}
 knitr::write_bib(c('posterdown', 'rmarkdown','pagedown'), 'packages.bib')
@@ -174,25 +211,37 @@ knitr::write_bib(c('posterdown', 'rmarkdown','pagedown'), 'packages.bib')
 
 This report aims to analyse data sourced from Kickstarter and provide models that answer the following questions: 
 
-1. What factors are likely to increase the amount of money raised, or pledged, on Kickstarter?  
-2. What factors influence the success or failure of a project launched on Kickstarter? 
-3.How can the probability of success for a given Kickstarter campaign be assessed? 
-4. How many Kickstarter campaigns will be in 2021? 
+1. What factors are likely to increase percentage of a campaigns pledged amount over its goal (goal_ratio)?
+
+2. What factors influence the success or failure of a project launched on Kickstarter?
+
+3. How can the probability of success, or goal ratio, for a given Kickstarter campaign be assessed?
 
 # Methods
-GLM Inverse Gaussian & Binomial were used to create the models 
+GLM Inverse Gaussian & Binomial were used to create the models. 
+The data was preprocced before by removing and changing some of the variables. 
+
+```{r eval=FALSE, warning=FALSE, include=FALSE}
+ggplot(kickstarter, aes(x = kickstarter$goal_ratio, y = staff_pick)) + geom_area(alpha = 0.6) + scale_fill_brewer(palette = "Harmonic")
 
 
-# Results of the IG model 
+```
 
-The residual plot of the IG model 
+The most significant factor for increasing the likelihood of success is backers_count_log.
+```{r echo=FALSE, warning=FALSE}
+ggplot(kickstarter, aes(x = kickstarter$backers_count_log, fill = target)) + geom_density(alpha = 0.6) + scale_fill_discrete_qualitative(palette = "Harmonic")
+```
+
+# Results of the Gaussian Model 
+
+The residual plot 
 
 ```{r, residual IG, fig.cap='Residual plot of IG model', out.width="80%"}
 plot(IG$linear.predictors,residuals(IG,type="deviance"),pch=16, col = "royalblue4")
 ```
 
 
-Confidence intervalls for the IG model shows 
+Confidence intervalls with 95% confidence for the Gaussian Model  
 
 ```{r confidence interval, echo=FALSE, fig.cap='confidence intervalls', fig.height=6, warning=FALSE, out.width="80%"}
 #trim whitespace
@@ -200,7 +249,7 @@ par(mar=c(2,2,0,0))
 
 coef(IG)[2] + 1.96*c(-1,1)*summary(IG)$coef[2,2]
 
-plot_summs(IG, scale = TRUE, plot.distributions = TRUE, inner_ci_level = .95)
+plot_summs(IG, scale = TRUE, plot.distributions = TRUE, inner_ci_level = .95)+ add_y_gridlines(T)
 
 ```
 
@@ -235,6 +284,7 @@ knitr::kable(confusionStats_df(results,"target")[c("Accuracy","Sensitivity","Spe
 
 ```
 
+Since the Binominal model was built using Step AIC, and interactions did not improve the residual plot, we expected it to be less bias. The results show that this Binominal model is less bias with 58% of the predictions being “successful” and the actual data having 56.67% “successful” campaigns.
 ```{r residual binominal, echo=FALSE, warning=FALSE, out.width="80%"}
 arm:::binnedplot(results$fit, as.numeric(results$target) - as.numeric(results$ClassPredict), col.pts = "royalblue4", col.int = "lightskyblue")
 ```
@@ -245,6 +295,7 @@ plot.roc(results$target,results$fit, col = "royalblue4",
          main = "Binominal baseline model", print.auc = TRUE)
 ```
 
+The confidence intervalls with 95% confidence for the binominal model 
 ```{r confidence binominal, echo=FALSE, warning=FALSE}
 coef(binominal_baseline)[2] + 1.96*c(-1,1)*summary(binominal_baseline)$coef[2,2]
 
@@ -255,15 +306,12 @@ plot_summs(binominal_baseline, scale = TRUE, plot.distributions = TRUE, inner_ci
 
 # Conclusion 
 
-We could have performed regularization with the different distributions.
+The goal_ratio predictions are much more conservative than the probability predictions, meaning goal_ratio will likely be understated.
 
-Our binomial model is great at discrimination. The residual plot makes it appear not calibrated, which is true. Howevever, most predictions (109682 / 114432) are greater then 65% or less then 35%.
+Probability predictions from the binomial model were directionally correct 94.49% of the times. Area Under Curve (AUC) represents a models aggregate ability to discriminate between the two categories. The binomial models AUC of 0.987 confirms it is more than suitable for predicting “Successful” or “failure” of Kickstarter campaigns. Looking at the residual plot for the binomial model, campaigns near the 50% region should not be trusted due to increased variance. Further investigations found that probability predictions near the 50% mark are rare (5% of predictions) , so this should not be an issue fore most using the model.
 
-In the models using the best subset with all interactions with BIC produced a lot of coefficients. We tried reducing the coefficients by examing the deviances, and removing interactions that were believed to not be significant or causing too many coefficients. The reduction in features will create less variability, meaning the confidence intervals are more reliable and predictions are more precise. Nonetheless, removing important coefficients did increase the bias of the model. 
+Anyone starting a Kickstarter campaign should benefit from the conservative goal_ratio predictions with the probability predictions. Additionally, an understanding of the coefficients that increase the goal_ratio and probability of success improve planning for campaigns. The appendix of this report provides useful visualizations of the data that complement the findings of this report and provide more useful context for anyone considering a Kickstarter campaign. The visual aids convey understanding to the distributions of the data that may effect the models conclusions in regard to a campaigns. Additionally, a nice visualization of the models coefficient values, along with 95% confidence intervals, is provided. The coefficient values visual helps conceptualize what features have a more adverse or positive effect with less difficulty than looking at the raw numbers. Simply put, the larger coefficient values have a positive impact, and negative values have an adverse impact on probabilities or goal_ratio.
 
-The models include backers count. It is true that this would not be known, but the models included it so that individuals starting a kickstarter campaign would need to know how many backers they would need. 
-
-Areas of future research would include predicting the number of backers.
 
 # References
 Kickstarter. (2020, July 20). Kickstarter Stats. Retrieved from Kickstarter: https://www.kickstarter.com/help/stats 
