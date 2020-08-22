@@ -73,6 +73,20 @@ library("broom.mixed")
 library("rmarkdown")
 library("knitr")
 
+library(esquisse)
+library(remedy)
+library(dplyr)
+library(lubridate)
+library(rjson)
+library(knitr)
+library(ggplot2)
+library(anytime)
+library(tidyr)
+library(questionr)
+library(styler)
+library(RColorBrewer)
+library(formattable)
+
 ```
 
 
